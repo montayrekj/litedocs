@@ -2,21 +2,20 @@
 -- 001_init.sql  — Ajaia Docs schema + RLS policies
 -- Run this in the Supabase SQL Editor (Project → SQL Editor)
 --
--- CREATION ORDER (important — do not change):
+-- Creation order (required to avoid circular RLS references):
 --   1. Extensions
---   2. profiles table  → RLS enabled → policies → trigger
---   3. documents table → RLS enabled (NO policies yet — they
---      reference document_shares which doesn't exist yet)
---   4. document_shares table → RLS enabled → ALL its policies
---   5. documents policies (safe now that document_shares exists)
---   6. updated_at trigger
+--   2. profiles table + RLS + trigger
+--   3. documents table + RLS enabled (NO policies yet)
+--   4. document_shares table + RLS + all its policies
+--   5. Security-definer helper functions (break RLS circular refs)
+--   6. documents RLS policies (now safe to reference document_shares via functions)
+--   7. updated_at trigger
 -- ============================================================
 
 -- ─── Extensions ─────────────────────────────────────────────
 create extension if not exists "uuid-ossp";
 
 -- ─── Profiles ────────────────────────────────────────────────
--- Mirror of auth.users so we can look up users by email.
 create table if not exists public.profiles (
   id           uuid primary key references auth.users(id) on delete cascade,
   email        text not null unique,
@@ -26,19 +25,16 @@ create table if not exists public.profiles (
 
 alter table public.profiles enable row level security;
 
--- Anyone authenticated can read profiles (needed for share-by-email lookup)
 create policy "profiles: authenticated read"
   on public.profiles for select
   to authenticated
   using (true);
 
--- Users can only update their own profile
 create policy "profiles: own update"
   on public.profiles for update
   to authenticated
   using (auth.uid() = id);
 
--- Auto-create profile on sign-up
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer as $$
 begin
@@ -58,7 +54,7 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
--- ─── Documents (table + RLS only — policies come after document_shares) ───
+-- ─── Documents (table + RLS enabled, policies added later) ───
 create table if not exists public.documents (
   id         uuid primary key default uuid_generate_v4(),
   owner_id   uuid not null references auth.users(id) on delete cascade,
@@ -69,6 +65,17 @@ create table if not exists public.documents (
 );
 
 alter table public.documents enable row level security;
+
+-- Insert and delete policies don't reference document_shares so safe to add now
+create policy "documents: owner insert"
+  on public.documents for insert
+  to authenticated
+  with check (owner_id = auth.uid());
+
+create policy "documents: owner delete"
+  on public.documents for delete
+  to authenticated
+  using (owner_id = auth.uid());
 
 -- ─── Document Shares ─────────────────────────────────────────
 create table if not exists public.document_shares (
@@ -82,80 +89,69 @@ create table if not exists public.document_shares (
 
 alter table public.document_shares enable row level security;
 
--- Read: document owner or the person it was shared with
+-- ─── Security-definer helpers (bypass RLS to break circular refs) ─
+-- These run as the function owner so they don't re-trigger RLS policies.
+
+create or replace function public.is_document_owner(doc_id uuid)
+returns boolean language sql security definer stable as $$
+  select exists (
+    select 1 from public.documents
+    where id = doc_id and owner_id = auth.uid()
+  );
+$$;
+
+create or replace function public.has_share_access(doc_id uuid)
+returns boolean language sql security definer stable as $$
+  select exists (
+    select 1 from public.document_shares
+    where document_id = doc_id
+      and shared_with_user_id = auth.uid()
+  );
+$$;
+
+create or replace function public.has_editor_access(doc_id uuid)
+returns boolean language sql security definer stable as $$
+  select exists (
+    select 1 from public.document_shares
+    where document_id = doc_id
+      and shared_with_user_id = auth.uid()
+      and role = 'editor'
+  );
+$$;
+
+-- ─── Document Shares RLS policies ────────────────────────────
+-- (uses is_document_owner() to avoid referencing documents via RLS)
+
 create policy "shares: owner or recipient can read"
   on public.document_shares for select
   to authenticated
   using (
     shared_with_user_id = auth.uid()
-    or exists (
-      select 1 from public.documents d
-      where d.id = document_id and d.owner_id = auth.uid()
-    )
+    or public.is_document_owner(document_id)
   );
 
--- Insert: only document owner can share
 create policy "shares: owner can insert"
   on public.document_shares for insert
   to authenticated
-  with check (
-    exists (
-      select 1 from public.documents d
-      where d.id = document_id and d.owner_id = auth.uid()
-    )
-  );
+  with check (public.is_document_owner(document_id));
 
--- Delete: only document owner can revoke
 create policy "shares: owner can delete"
   on public.document_shares for delete
   to authenticated
-  using (
-    exists (
-      select 1 from public.documents d
-      where d.id = document_id and d.owner_id = auth.uid()
-    )
-  );
+  using (public.is_document_owner(document_id));
 
--- ─── Documents policies (document_shares now exists) ─────────
+-- ─── Documents RLS policies ───────────────────────────────────
+-- (uses helper functions so document_shares is not accessed via RLS → no recursion)
 
--- Select: owner OR shared editor
 create policy "documents: owner or shared can read"
   on public.documents for select
   to authenticated
-  using (
-    owner_id = auth.uid()
-    or exists (
-      select 1 from public.document_shares ds
-      where ds.document_id = id
-        and ds.shared_with_user_id = auth.uid()
-    )
-  );
+  using (owner_id = auth.uid() or public.has_share_access(id));
 
--- Insert: authenticated users only (they become owner)
-create policy "documents: owner insert"
-  on public.documents for insert
-  to authenticated
-  with check (owner_id = auth.uid());
-
--- Update: owner OR shared editor
 create policy "documents: owner or shared editor can update"
   on public.documents for update
   to authenticated
-  using (
-    owner_id = auth.uid()
-    or exists (
-      select 1 from public.document_shares ds
-      where ds.document_id = id
-        and ds.shared_with_user_id = auth.uid()
-        and ds.role = 'editor'
-    )
-  );
-
--- Delete: owner only
-create policy "documents: owner delete"
-  on public.documents for delete
-  to authenticated
-  using (owner_id = auth.uid());
+  using (owner_id = auth.uid() or public.has_editor_access(id));
 
 -- ─── Updated-at trigger ──────────────────────────────────────
 create or replace function public.set_updated_at()
