@@ -1,6 +1,15 @@
 -- ============================================================
 -- 001_init.sql  — Ajaia Docs schema + RLS policies
 -- Run this in the Supabase SQL Editor (Project → SQL Editor)
+--
+-- CREATION ORDER (important — do not change):
+--   1. Extensions
+--   2. profiles table  → RLS enabled → policies → trigger
+--   3. documents table → RLS enabled (NO policies yet — they
+--      reference document_shares which doesn't exist yet)
+--   4. document_shares table → RLS enabled → ALL its policies
+--   5. documents policies (safe now that document_shares exists)
+--   6. updated_at trigger
 -- ============================================================
 
 -- ─── Extensions ─────────────────────────────────────────────
@@ -49,7 +58,7 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
--- ─── Documents ───────────────────────────────────────────────
+-- ─── Documents (table + RLS only — policies come after document_shares) ───
 create table if not exists public.documents (
   id         uuid primary key default uuid_generate_v4(),
   owner_id   uuid not null references auth.users(id) on delete cascade,
@@ -60,45 +69,6 @@ create table if not exists public.documents (
 );
 
 alter table public.documents enable row level security;
-
--- Select: owner OR shared editor
-create policy "documents: owner or shared can read"
-  on public.documents for select
-  to authenticated
-  using (
-    owner_id = auth.uid()
-    or exists (
-      select 1 from public.document_shares ds
-      where ds.document_id = id
-        and ds.shared_with_user_id = auth.uid()
-    )
-  );
-
--- Insert: authenticated users only (they become owner)
-create policy "documents: owner insert"
-  on public.documents for insert
-  to authenticated
-  with check (owner_id = auth.uid());
-
--- Update: owner OR shared editor
-create policy "documents: owner or shared editor can update"
-  on public.documents for update
-  to authenticated
-  using (
-    owner_id = auth.uid()
-    or exists (
-      select 1 from public.document_shares ds
-      where ds.document_id = id
-        and ds.shared_with_user_id = auth.uid()
-        and ds.role = 'editor'
-    )
-  );
-
--- Delete: owner only
-create policy "documents: owner delete"
-  on public.documents for delete
-  to authenticated
-  using (owner_id = auth.uid());
 
 -- ─── Document Shares ─────────────────────────────────────────
 create table if not exists public.document_shares (
@@ -145,6 +115,47 @@ create policy "shares: owner can delete"
       where d.id = document_id and d.owner_id = auth.uid()
     )
   );
+
+-- ─── Documents policies (document_shares now exists) ─────────
+
+-- Select: owner OR shared editor
+create policy "documents: owner or shared can read"
+  on public.documents for select
+  to authenticated
+  using (
+    owner_id = auth.uid()
+    or exists (
+      select 1 from public.document_shares ds
+      where ds.document_id = id
+        and ds.shared_with_user_id = auth.uid()
+    )
+  );
+
+-- Insert: authenticated users only (they become owner)
+create policy "documents: owner insert"
+  on public.documents for insert
+  to authenticated
+  with check (owner_id = auth.uid());
+
+-- Update: owner OR shared editor
+create policy "documents: owner or shared editor can update"
+  on public.documents for update
+  to authenticated
+  using (
+    owner_id = auth.uid()
+    or exists (
+      select 1 from public.document_shares ds
+      where ds.document_id = id
+        and ds.shared_with_user_id = auth.uid()
+        and ds.role = 'editor'
+    )
+  );
+
+-- Delete: owner only
+create policy "documents: owner delete"
+  on public.documents for delete
+  to authenticated
+  using (owner_id = auth.uid());
 
 -- ─── Updated-at trigger ──────────────────────────────────────
 create or replace function public.set_updated_at()
