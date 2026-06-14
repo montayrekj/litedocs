@@ -73,8 +73,9 @@ export async function POST(request: NextRequest) {
 
     const parsed = bodySchema.safeParse(body);
     if (!parsed.success) {
+      const firstIssue = parsed.error.issues?.[0];
       return NextResponse.json(
-        { error: parsed.error.errors[0].message },
+        { error: firstIssue?.message ?? "Invalid request" },
         { status: 422 }
       );
     }

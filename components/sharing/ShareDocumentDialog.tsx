@@ -42,7 +42,7 @@ export default function ShareDocumentDialog({ documentId, onClose, onShared }: P
 
     const result = emailSchema.safeParse(email.trim());
     if (!result.success) {
-      setEmailError(result.error.errors[0].message);
+      setEmailError(result.error.issues?.[0]?.message ?? "Invalid email");
       return;
     }
 

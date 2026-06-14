@@ -28,7 +28,7 @@ export async function createDocument(title = "Untitled Document") {
     .single();
 
   if (error) throw new Error(error.message);
-  revalidatePath("/dashboard");
+  revalidatePath("/dashboard", "page");
   return data;
 }
 
@@ -59,7 +59,7 @@ export async function getMyDocuments() {
     .order("updated_at", { ascending: false });
 
   if (error) throw new Error(error.message);
-  return (data ?? []).map((d) => ({ ...d, isOwner: true }));
+  return (data ?? []).map((d) => ({ ...d, isOwner: true as const }));
 }
 
 export async function getSharedWithMe() {
@@ -74,12 +74,20 @@ export async function getSharedWithMe() {
   if (error) throw new Error(error.message);
 
   return (data ?? [])
-    .filter((row) => row.documents)
-    .map((row) => ({
-      ...(row.documents as Record<string, unknown>),
-      isOwner: false,
-      shareRole: row.role,
-    }));
+    .filter((row) => row.documents && !Array.isArray(row.documents))
+    .map((row) => {
+      const doc = row.documents as unknown as Record<string, unknown>;
+      return {
+        id: doc.id as string,
+        owner_id: doc.owner_id as string,
+        title: doc.title as string,
+        content: (doc.content ?? null) as TipTapDoc | null,
+        created_at: doc.created_at as string,
+        updated_at: doc.updated_at as string,
+        isOwner: false as const,
+        shareRole: row.role,
+      };
+    });
 }
 
 // ─── Update ───────────────────────────────────────────────────────────────────
@@ -87,7 +95,7 @@ export async function getSharedWithMe() {
 const updateSchema = z.object({
   id: z.string().uuid(),
   title: z.string().min(1).max(200).optional(),
-  content: z.record(z.unknown()).optional(),
+  content: z.record(z.string(), z.unknown()).optional(),
 });
 
 export async function updateDocument(
@@ -103,7 +111,7 @@ export async function updateDocument(
     .eq("id", id);
 
   if (error) throw new Error(error.message);
-  revalidatePath(`/documents/${id}`);
+  revalidatePath(`/documents/${id}`, "page");
 }
 
 // ─── Delete ───────────────────────────────────────────────────────────────────
@@ -118,7 +126,7 @@ export async function deleteDocument(id: string) {
     .eq("owner_id", user.id);
 
   if (error) throw new Error(error.message);
-  revalidatePath("/dashboard");
+  revalidatePath("/dashboard", "page");
 }
 
 // ─── Sharing ──────────────────────────────────────────────────────────────────
@@ -162,7 +170,7 @@ export async function shareDocument(documentId: string, email: string) {
   );
 
   if (error) throw new Error(error.message);
-  revalidatePath(`/documents/${parsed.documentId}`);
+  revalidatePath(`/documents/${parsed.documentId}`, "page");
 }
 
 export async function getDocumentShares(documentId: string) {
@@ -195,7 +203,7 @@ export async function removeShare(documentId: string, userId: string) {
     .eq("shared_with_user_id", userId);
 
   if (error) throw new Error(error.message);
-  revalidatePath(`/documents/${documentId}`);
+  revalidatePath(`/documents/${documentId}`, "page");
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -216,6 +224,6 @@ export async function importDocument(title: string, content: TipTapDoc) {
     .single();
 
   if (error) throw new Error(error.message);
-  revalidatePath("/dashboard");
+  revalidatePath("/dashboard", "page");
   return data;
 }
