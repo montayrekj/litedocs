@@ -17,8 +17,8 @@
   font-size: 1.875rem;
   font-weight: 700;
   line-height: 1.2;
-  margin-top: 1.5rem;
-  margin-bottom: 0.75rem;
+  margin-top: 2rem;
+  margin-bottom: 1.25rem;
   color: #111827;
 }
 
@@ -26,16 +26,33 @@
   font-size: 1.5rem;
   font-weight: 600;
   line-height: 1.3;
-  margin-top: 1.25rem;
-  margin-bottom: 0.5rem;
+  margin-top: 1.75rem;
+  margin-bottom: 0.875rem;
+  color: #111827;
+}
+
+.ProseMirror h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.4;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
   color: #111827;
 }
 
 .ProseMirror p {
-  margin-top: 0.5rem;
-  margin-bottom: 0.5rem;
-  line-height: 1.7;
+  margin-top: 0.625rem;
+  margin-bottom: 0.625rem;
+  line-height: 1.75;
   color: #374151;
+}
+
+/* Empty paragraphs act as blank lines — give them a full line of breathing room */
+.ProseMirror p:has(br:only-child),
+.ProseMirror p:empty {
+  min-height: 1.75em;
+  margin-top: 0;
+  margin-bottom: 0;
 }
 
 .ProseMirror ul {
