@@ -73,28 +73,20 @@ export async function POST(request: NextRequest) {
     { buffer },
     {
       styleMap: MAMMOTH_STYLE_MAP,
-      // convertImage must be a plain async function (not wrapped in imgElement).
-      // It receives an ImageElement and must return a Promise<{tag, attributes}[]>.
-      // image.read("base64") returns the base64 string directly per mammoth docs.
-      convertImage: async (image: {
-        read: (encoding: string) => Promise<string>;
-        contentType: string;
-      }) => {
-        try {
-          const base64 = await image.read("base64");
-          return [
-            {
-              tag: "img",
-              attributes: {
-                src: `data:${image.contentType};base64,${base64}`,
-                alt: "",
-              },
-            },
-          ];
-        } catch {
-          return [];
+      // mammoth.images.imgElement is the correct API — confirmed accessible at runtime.
+      // Cast through any because TypeScript's mammoth type defs don't expose .images.
+      // The callback receives an image element; return { src } and mammoth wraps it in <img>.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      convertImage: (mammoth as any).images.imgElement(
+        async (image: { read: (enc: string) => Promise<string>; contentType: string }) => {
+          try {
+            const base64 = await image.read("base64");
+            return { src: `data:${image.contentType};base64,${base64}` };
+          } catch {
+            return { src: "" };
+          }
         }
-      },
+      ),
     }
   );
 
@@ -104,7 +96,12 @@ export async function POST(request: NextRequest) {
     .filter((m) => m.type === "warning")
     .map((m) => m.message);
 
-  const tiptapJson = generateJSON(html, [StarterKit, UnderlineExtension, ImageExtension]);
+  const tiptapJson = generateJSON(html, [
+    // @ts-expect-error — underline may be bundled in StarterKit at runtime
+    StarterKit.configure({ underline: false }),
+    UnderlineExtension,
+    ImageExtension,
+  ]);
 
   return NextResponse.json({ json: tiptapJson, warnings });
 }
