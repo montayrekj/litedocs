@@ -4,15 +4,19 @@ import dynamic from "next/dynamic";
 import { useState, useTransition, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Check, Loader2, AlertCircle, Share2 } from "lucide-react";
+import { ArrowLeft, Check, Loader2, AlertCircle, Share2, Upload } from "lucide-react";
 import { updateDocument } from "@/lib/documents/actions";
 import { toast } from "@/components/ui/Toaster";
 import ShareDocumentDialog from "@/components/sharing/ShareDocumentDialog";
-import type { DocumentWithOwnership } from "@/lib/types";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import { plainTextToTipTap } from "@/lib/editor/plainTextToTipTap";
+import type { DocumentWithOwnership, TipTapDoc } from "@/lib/types";
 
 const DocumentEditor = dynamic(() => import("./DocumentEditor"), { ssr: false });
 
 type SaveStatus = "saved" | "saving" | "error" | "idle";
+
+const SUPPORTED_EXTENSIONS = [".txt", ".md"];
 
 interface Props {
   document: DocumentWithOwnership;
@@ -24,8 +28,34 @@ export default function DocumentPageClient({ document, currentUser }: Props) {
   const [title, setTitle] = useState(document.title);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [showShareDialog, setShowShareDialog] = useState(false);
+  const [importedContent, setImportedContent] = useState<TipTapDoc | null>(null);
+  const [pendingImport, setPendingImport] = useState<{ file: File; text: string } | null>(null);
   const [, startTransition] = useTransition();
   const titleDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+
+    const ext = "." + file.name.split(".").pop()?.toLowerCase();
+    if (!SUPPORTED_EXTENSIONS.includes(ext)) {
+      toast(`Unsupported file. Supports: ${SUPPORTED_EXTENSIONS.join(", ")}`, "error");
+      return;
+    }
+
+    const text = await file.text();
+    setPendingImport({ file, text });
+  }
+
+  function confirmImport() {
+    if (!pendingImport) return;
+    const tiptapDoc = plainTextToTipTap(pendingImport.text);
+    setImportedContent(tiptapDoc);
+    toast(`Appended "${pendingImport.file.name}" to document`, "success");
+    setPendingImport(null);
+  }
 
   const handleTitleChange = useCallback(
     (newTitle: string) => {
@@ -114,6 +144,23 @@ export default function DocumentPageClient({ document, currentUser }: Props) {
               </span>
             )}
 
+            {/* Import into draft button */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              title="Import .txt or .md file into this document"
+              className="inline-flex items-center gap-1.5 border border-gray-300 bg-white text-gray-700 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+            >
+              <Upload className="h-3.5 w-3.5" />
+              Import
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".txt,.md,text/plain,text/markdown"
+              className="hidden"
+              onChange={handleImportFile}
+            />
+
             {/* Share button — owners only */}
             {document.isOwner && (
               <button
@@ -133,6 +180,7 @@ export default function DocumentPageClient({ document, currentUser }: Props) {
         <DocumentEditor
           documentId={document.id}
           initialContent={document.content}
+          importedContent={importedContent}
           onSaveStatusChange={(s) => setSaveStatus(s)}
         />
       </main>
@@ -145,6 +193,17 @@ export default function DocumentPageClient({ document, currentUser }: Props) {
             toast("Document shared successfully", "success");
             router.refresh();
           }}
+        />
+      )}
+
+      {pendingImport && (
+        <ConfirmDialog
+          title="Append file to document"
+          message={`"${pendingImport.file.name}" will be appended to the end of this document.`}
+          confirmLabel="Append"
+          cancelLabel="Cancel"
+          onConfirm={confirmImport}
+          onCancel={() => setPendingImport(null)}
         />
       )}
     </div>

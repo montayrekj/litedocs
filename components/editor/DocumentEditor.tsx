@@ -12,12 +12,14 @@ import type { TipTapDoc } from "@/lib/types";
 interface Props {
   documentId: string;
   initialContent: TipTapDoc | null;
+  importedContent?: TipTapDoc | null;
   onSaveStatusChange: (status: "saved" | "saving" | "error") => void;
 }
 
 export default function DocumentEditor({
   documentId,
   initialContent,
+  importedContent,
   onSaveStatusChange,
 }: Props) {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -64,6 +66,14 @@ export default function DocumentEditor({
     },
     immediatelyRender: false,
   });
+
+  // When parent passes imported content, append it at the end and autosave
+  useEffect(() => {
+    if (!importedContent || !editor) return;
+    const endPos = editor.state.doc.content.size;
+    editor.chain().insertContentAt(endPos, importedContent.content).run();
+    debouncedSave(editor.getJSON() as TipTapDoc);
+  }, [importedContent, editor, debouncedSave]);
 
   // Expose a way for the parent to trigger title-inclusive saves
   useEffect(() => {
