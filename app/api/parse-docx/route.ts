@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
     .map((m) => m.message);
 
   const rawJson = generateJSON(html, [
-    // @ts-expect-error — underline may be bundled in StarterKit at runtime
+    // @ts-ignore — underline may be bundled in StarterKit at runtime
     StarterKit.configure({ underline: false }),
     UnderlineExtension,
     ImageExtension,

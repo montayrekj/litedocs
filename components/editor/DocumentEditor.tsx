@@ -58,7 +58,7 @@ export default function DocumentEditor({
     extensions: [
       StarterKit.configure({
         // Disable StarterKit's bundled underline if present to avoid duplicate warning
-        // @ts-expect-error — underline is not in StarterKit types but may be included at runtime
+        // @ts-ignore — underline is not in StarterKit types but may be included at runtime
         underline: false,
       }),
       UnderlineExtension,
