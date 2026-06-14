@@ -83,3 +83,11 @@
 .ProseMirror u {
   text-decoration: underline;
 }
+
+.ProseMirror img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.375rem;
+  margin: 1rem 0;
+  display: block;
+}

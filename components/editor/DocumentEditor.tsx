@@ -4,6 +4,7 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import UnderlineExtension from "@tiptap/extension-underline";
 import Placeholder from "@tiptap/extension-placeholder";
+import ImageExtension from "@tiptap/extension-image";
 import EditorToolbar from "./EditorToolbar";
 import { useCallback, useEffect, useRef } from "react";
 import { updateDocument } from "@/lib/documents/actions";
@@ -14,6 +15,7 @@ interface Props {
   initialContent: TipTapDoc | null;
   importedContent?: TipTapDoc | null;
   onSaveStatusChange: (status: "saved" | "saving" | "error") => void;
+  onImportDone?: () => void;
 }
 
 export default function DocumentEditor({
@@ -21,6 +23,7 @@ export default function DocumentEditor({
   initialContent,
   importedContent,
   onSaveStatusChange,
+  onImportDone,
 }: Props) {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestTitle = useRef<string | undefined>(undefined);
@@ -43,6 +46,7 @@ export default function DocumentEditor({
         }
       }, 800);
     },
+    // onSaveStatusChange must be memoized in parent (useCallback) to keep this stable
     [documentId, onSaveStatusChange]
   );
 
@@ -50,6 +54,7 @@ export default function DocumentEditor({
     extensions: [
       StarterKit,
       UnderlineExtension,
+      ImageExtension.configure({ inline: false, allowBase64: true }),
       Placeholder.configure({
         placeholder: "Start writing…",
       }),
@@ -67,21 +72,21 @@ export default function DocumentEditor({
     immediatelyRender: false,
   });
 
-  // When parent passes imported content, append at end then restore cursor position
+  // Append imported content at end, restore cursor, then signal parent to clear state.
+  // onImportDone resets importedContent → null in parent so this effect only fires once per import.
   useEffect(() => {
     if (!importedContent || !editor) return;
-    // Save current cursor position before the insert moves it to the end
     const savedPos = editor.state.selection.anchor;
     const endPos = editor.state.doc.content.size;
     editor
       .chain()
       .insertContentAt(endPos, importedContent.content)
-      // Restore cursor to where the user was so the first arrow key press
-      // doesn't snap the viewport to the bottom of the appended content
       .setTextSelection(savedPos)
       .run();
     debouncedSave(editor.getJSON() as TipTapDoc);
-  }, [importedContent, editor, debouncedSave]);
+    onImportDone?.();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [importedContent]);
 
   // Expose a way for the parent to trigger title-inclusive saves
   useEffect(() => {

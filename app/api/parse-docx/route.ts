@@ -3,6 +3,7 @@ import mammoth from "mammoth";
 import { generateJSON } from "@tiptap/html";
 import StarterKit from "@tiptap/starter-kit";
 import UnderlineExtension from "@tiptap/extension-underline";
+import ImageExtension from "@tiptap/extension-image";
 import { createClient } from "@/lib/supabase/server";
 
 // Maps Word paragraph/run styles → HTML elements.
@@ -70,7 +71,14 @@ export async function POST(request: NextRequest) {
 
   const { value: rawHtml, messages } = await mammoth.convertToHtml(
     { buffer },
-    { styleMap: MAMMOTH_STYLE_MAP }
+    {
+      styleMap: MAMMOTH_STYLE_MAP,
+      convertImage: mammoth.images.imgElement(async (image) => {
+        const imageBuffer = await image.read();
+        const base64 = imageBuffer.toString("base64");
+        return { src: `data:${image.contentType};base64,${base64}` };
+      }),
+    }
   );
 
   const html = cleanHtml(rawHtml);
@@ -79,7 +87,7 @@ export async function POST(request: NextRequest) {
     .filter((m) => m.type === "warning")
     .map((m) => m.message);
 
-  const tiptapJson = generateJSON(html, [StarterKit, UnderlineExtension]);
+  const tiptapJson = generateJSON(html, [StarterKit, UnderlineExtension, ImageExtension]);
 
   return NextResponse.json({ json: tiptapJson, warnings });
 }

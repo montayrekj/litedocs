@@ -28,6 +28,7 @@ export default function DocumentPageClient({ document, currentUser }: Props) {
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [importedContent, setImportedContent] = useState<TipTapDoc | null>(null);
   const [pendingImport, setPendingImport] = useState<{ file: File } | null>(null);
+  const handleSaveStatus = useCallback((s: SaveStatus) => setSaveStatus(s), []);
   const [, startTransition] = useTransition();
   const titleDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -182,7 +183,8 @@ export default function DocumentPageClient({ document, currentUser }: Props) {
           documentId={document.id}
           initialContent={document.content}
           importedContent={importedContent}
-          onSaveStatusChange={(s) => setSaveStatus(s)}
+          onSaveStatusChange={handleSaveStatus}
+          onImportDone={() => setImportedContent(null)}
         />
       </main>
 
