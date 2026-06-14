@@ -176,13 +176,27 @@ export async function shareDocument(documentId: string, email: string) {
 export async function getDocumentShares(documentId: string) {
   const { supabase } = await getAuthUser();
 
-  const { data, error } = await supabase
+  // Fetch shares first, then manually join profiles to avoid missing FK in schema cache
+  const { data: shares, error } = await supabase
     .from("document_shares")
-    .select("*, profiles(email, display_name)")
+    .select("id, document_id, shared_with_user_id, role, created_at")
     .eq("document_id", documentId);
 
   if (error) throw new Error(error.message);
-  return data ?? [];
+  if (!shares || shares.length === 0) return [];
+
+  const userIds = shares.map((s) => s.shared_with_user_id);
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, email, display_name")
+    .in("id", userIds);
+
+  const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
+
+  return shares.map((share) => ({
+    ...share,
+    profiles: profileMap.get(share.shared_with_user_id) ?? null,
+  }));
 }
 
 export async function removeShare(documentId: string, userId: string) {
