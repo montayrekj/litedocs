@@ -73,11 +73,27 @@ export async function POST(request: NextRequest) {
     { buffer },
     {
       styleMap: MAMMOTH_STYLE_MAP,
-      convertImage: mammoth.images.imgElement(async (image) => {
-        const imageBuffer = await image.read();
-        const base64 = imageBuffer.toString("base64");
-        return { src: `data:${image.contentType};base64,${base64}` };
-      }),
+      // Use the low-level convertImage API directly to avoid relying on
+      // mammoth.images.imgElement being accessible from the ESM default import.
+      // image.read("base64") returns the base64 string directly per mammoth docs.
+      convertImage: {
+        convert: async (image: { read: (enc: string) => Promise<string>; contentType: string }) => {
+          try {
+            const base64 = await image.read("base64");
+            return [
+              {
+                tag: "img",
+                attributes: {
+                  src: `data:${image.contentType};base64,${base64}`,
+                  alt: "",
+                },
+              },
+            ];
+          } catch {
+            return [];
+          }
+        },
+      },
     }
   );
 
