@@ -53,6 +53,7 @@ export async function POST(request: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const authedUser = user;
 
   const formData = await request.formData();
   const file = formData.get("file") as File | null;
@@ -82,7 +83,7 @@ export async function POST(request: NextRequest) {
   ): Promise<string> {
     try {
       const ext = contentType.split("/")[1]?.replace("jpeg", "jpg") ?? "jpg";
-      const path = `${user.id}/${Date.now()}-${index}.${ext}`;
+      const path = `${authedUser.id}/${Date.now()}-${index}.${ext}`;
       const imageBuffer = Buffer.from(base64, "base64");
 
       const { error } = await supabase.storage

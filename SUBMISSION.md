@@ -7,29 +7,29 @@
 
 ## Deliverables
 
-| Item | Location | Status |
-|------|----------|--------|
-| Source code | This repository | ✅ |
-| README.md | `README.md` | ✅ |
-| Architecture note | `ARCHITECTURE.md` | ✅ |
-| AI workflow note | `AI_WORKFLOW.md` | ✅ |
-| Submission inventory | `SUBMISSION.md` (this file) | ✅ |
-| Walkthrough video | `VIDEO_URL.txt` | ✅ |
-| Live deployment URL | See below + README | ✅ |
-| Demo credentials | README + landing page | ✅ |
+| Item                 | Location                    | Status |
+| -------------------- | --------------------------- | ------ |
+| Source code          | This repository             | ✅     |
+| README.md            | `README.md`                 | ✅     |
+| Architecture note    | `ARCHITECTURE.md`           | ✅     |
+| AI workflow note     | `AI_WORKFLOW.md`            | ✅     |
+| Submission inventory | `SUBMISSION.md` (this file) | ✅     |
+| Walkthrough video    | `VIDEO_URL.txt`             | ✅     |
+| Live deployment URL  | See below + README          | ✅     |
+| Demo credentials     | README + landing page       | ✅     |
 
 ---
 
 ## Live Deployment
 
-**URL:** `[add Vercel URL after deploy]`
+**URL:** http://litedocs-git-main-montayrekjs-projects.vercel.app/
 
 **Demo accounts:**
 
-| User | Email | Password |
-|------|-------|----------|
+| User  | Email              | Password    |
+| ----- | ------------------ | ----------- |
 | Alice | `alice@demo.local` | `Demo1234!` |
-| Bob | `bob@demo.local` | `Demo1234!` |
+| Bob   | `bob@demo.local`   | `Demo1234!` |
 
 ---
 
@@ -58,14 +58,14 @@
 
 ## What Is Incomplete / Out of Scope
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Real-time collaboration | Not built | Would require Yjs + Supabase Realtime; out of scope for timebox |
-| Version history | Not built | Stated out of scope in architecture note |
-| Viewer-only role | Not built | Owner vs Editor is sufficient for the demo; viewer would add UI complexity |
-| Commenting / suggestions | Not built | Stated out of scope |
-| Export to PDF/Markdown | Not built | Stated out of scope |
-| `.pdf` import | Not built | No reliable free-tier PDF-to-text library without external APIs |
+| Feature                  | Status    | Notes                                                                      |
+| ------------------------ | --------- | -------------------------------------------------------------------------- |
+| Real-time collaboration  | Not built | Would require Yjs + Supabase Realtime; out of scope for timebox            |
+| Version history          | Not built | Stated out of scope in architecture note                                   |
+| Viewer-only role         | Not built | Owner vs Editor is sufficient for the demo; viewer would add UI complexity |
+| Commenting / suggestions | Not built | Stated out of scope                                                        |
+| Export to PDF/Markdown   | Not built | Stated out of scope                                                        |
+| `.pdf` import            | Not built | No reliable free-tier PDF-to-text library without external APIs            |
 
 ---
 
