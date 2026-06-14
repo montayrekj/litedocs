@@ -1,0 +1,36 @@
+-- ============================================================
+-- seed.sql — Demo users + sample document
+-- Run AFTER 001_init.sql
+--
+-- NOTE: Auth users must be created via the Supabase Dashboard or
+-- the admin script (scripts/seed-users.ts). This file seeds the
+-- sample document assuming Alice's user ID is already known.
+--
+-- Demo credentials:
+--   alice@demo.local / Demo1234!   (owner)
+--   bob@demo.local   / Demo1234!   (collaborator)
+-- ============================================================
+
+-- After creating users via Dashboard, run this to add a sample doc.
+-- Replace the UUIDs below with the actual IDs from auth.users.
+
+-- Example (update UUIDs after creating users):
+-- insert into public.documents (id, owner_id, title, content) values (
+--   'aaaaaaaa-0000-0000-0000-000000000001',
+--   '<alice-user-id>',
+--   'Welcome to Ajaia Docs',
+--   '{
+--     "type": "doc",
+--     "content": [
+--       {"type":"heading","attrs":{"level":1},"content":[{"type":"text","text":"Welcome to Ajaia Docs"}]},
+--       {"type":"paragraph","content":[{"type":"text","text":"This is a sample document to demonstrate the editor."}]},
+--       {"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"Features"}]},
+--       {"type":"bulletList","content":[
+--         {"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Rich-text editing with Bold, Italic, Underline"}]}]},
+--         {"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Headings and lists"}]}]},
+--         {"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Autosave every keystroke"}]}]},
+--         {"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Share with other users by email"}]}]}
+--       ]}
+--     ]
+--   }'::jsonb
+-- );
