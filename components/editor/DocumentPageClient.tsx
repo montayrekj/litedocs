@@ -9,14 +9,12 @@ import { updateDocument } from "@/lib/documents/actions";
 import { toast } from "@/components/ui/Toaster";
 import ShareDocumentDialog from "@/components/sharing/ShareDocumentDialog";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
-import { plainTextToTipTap } from "@/lib/editor/plainTextToTipTap";
+import { fileToTipTap, SUPPORTED_EXTENSIONS, ACCEPT_ATTR, SUPPORTED_LABEL } from "@/lib/editor/fileToTipTap";
 import type { DocumentWithOwnership, TipTapDoc } from "@/lib/types";
 
 const DocumentEditor = dynamic(() => import("./DocumentEditor"), { ssr: false });
 
 type SaveStatus = "saved" | "saving" | "error" | "idle";
-
-const SUPPORTED_EXTENSIONS = [".txt", ".md"];
 
 interface Props {
   document: DocumentWithOwnership;
@@ -29,7 +27,7 @@ export default function DocumentPageClient({ document, currentUser }: Props) {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [importedContent, setImportedContent] = useState<TipTapDoc | null>(null);
-  const [pendingImport, setPendingImport] = useState<{ file: File; text: string } | null>(null);
+  const [pendingImport, setPendingImport] = useState<{ file: File } | null>(null);
   const [, startTransition] = useTransition();
   const titleDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -41,20 +39,23 @@ export default function DocumentPageClient({ document, currentUser }: Props) {
 
     const ext = "." + file.name.split(".").pop()?.toLowerCase();
     if (!SUPPORTED_EXTENSIONS.includes(ext)) {
-      toast(`Unsupported file. Supports: ${SUPPORTED_EXTENSIONS.join(", ")}`, "error");
+      toast(`Unsupported file. Supports: ${SUPPORTED_LABEL}`, "error");
       return;
     }
 
-    const text = await file.text();
-    setPendingImport({ file, text });
+    setPendingImport({ file });
   }
 
-  function confirmImport() {
+  async function confirmImport() {
     if (!pendingImport) return;
-    const tiptapDoc = plainTextToTipTap(pendingImport.text);
-    setImportedContent(tiptapDoc);
-    toast(`Appended "${pendingImport.file.name}" to document`, "success");
     setPendingImport(null);
+    try {
+      const tiptapDoc = await fileToTipTap(pendingImport.file);
+      setImportedContent(tiptapDoc);
+      toast(`Appended "${pendingImport.file.name}" to document`, "success");
+    } catch (err: unknown) {
+      toast(err instanceof Error ? err.message : "Failed to import file", "error");
+    }
   }
 
   const handleTitleChange = useCallback(
@@ -156,7 +157,7 @@ export default function DocumentPageClient({ document, currentUser }: Props) {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".txt,.md,text/plain,text/markdown"
+              accept={ACCEPT_ATTR}
               className="hidden"
               onChange={handleImportFile}
             />

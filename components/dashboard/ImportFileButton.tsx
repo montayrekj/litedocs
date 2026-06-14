@@ -4,10 +4,8 @@ import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Upload } from "lucide-react";
 import { toast } from "@/components/ui/Toaster";
-import { plainTextToTipTap } from "@/lib/editor/plainTextToTipTap";
+import { fileToTipTap, SUPPORTED_EXTENSIONS, ACCEPT_ATTR, SUPPORTED_LABEL } from "@/lib/editor/fileToTipTap";
 import { importDocument } from "@/lib/documents/actions";
-
-const SUPPORTED = [".txt", ".md"];
 
 export default function ImportFileButton({ onImported }: { onImported: () => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -17,23 +15,21 @@ export default function ImportFileButton({ onImported }: { onImported: () => voi
 
   async function processFile(file: File) {
     const ext = "." + file.name.split(".").pop()?.toLowerCase();
-    if (!SUPPORTED.includes(ext)) {
-      toast(`Unsupported file type. Supports: ${SUPPORTED.join(", ")}`, "error");
+    if (!SUPPORTED_EXTENSIONS.includes(ext)) {
+      toast(`Unsupported file type. Supports: ${SUPPORTED_LABEL}`, "error");
       return;
     }
 
-    const text = await file.text();
-    const content = plainTextToTipTap(text);
-    const title = file.name.replace(/\.(txt|md)$/i, "") || "Imported Document";
-
     startTransition(async () => {
       try {
+        const content = await fileToTipTap(file);
+        const title = file.name.replace(/\.(txt|md|docx)$/i, "") || "Imported Document";
         const doc = await importDocument(title, content);
         toast("File imported as new document", "success");
         onImported();
         router.push(`/documents/${doc.id}`);
-      } catch {
-        toast("Failed to import file", "error");
+      } catch (err: unknown) {
+        toast(err instanceof Error ? err.message : "Failed to import file", "error");
       }
     });
   }
@@ -64,7 +60,7 @@ export default function ImportFileButton({ onImported }: { onImported: () => voi
             ? "border-blue-400 bg-blue-50 text-blue-700"
             : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
         }`}
-        title="Supports .txt and .md files"
+        title={`Supports ${SUPPORTED_LABEL}`}
       >
         <Upload className="h-4 w-4" />
         {isPending ? "Importing…" : "Import file"}
@@ -72,7 +68,7 @@ export default function ImportFileButton({ onImported }: { onImported: () => voi
       <input
         ref={inputRef}
         type="file"
-        accept=".txt,.md,text/plain,text/markdown"
+        accept={ACCEPT_ATTR}
         className="hidden"
         onChange={handleFileChange}
       />
