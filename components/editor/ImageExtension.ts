@@ -1,15 +1,18 @@
 import ImageBase from "@tiptap/extension-image";
+import type { ImageOptions } from "@tiptap/extension-image";
 import { ReactNodeViewRenderer } from "@tiptap/react";
 import ImageNodeView from "./ImageNode";
 
-const ImageExtension = ImageBase.extend({
+const ImageExtension = ImageBase.extend<ImageOptions>({
   // Default allowBase64 to true so the parent's stripping plugin never runs,
   // regardless of whether .configure({ allowBase64: true }) is called at the use-site.
   addOptions() {
     return {
-      ...this.parent?.(),
+      inline: false,
+      HTMLAttributes: {},
       allowBase64: true,
-    };
+      ...this.parent?.(),
+    } as ImageOptions;
   },
 
   addAttributes() {
