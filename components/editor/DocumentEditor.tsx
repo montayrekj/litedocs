@@ -67,11 +67,19 @@ export default function DocumentEditor({
     immediatelyRender: false,
   });
 
-  // When parent passes imported content, append it at the end and autosave
+  // When parent passes imported content, append at end then restore cursor position
   useEffect(() => {
     if (!importedContent || !editor) return;
+    // Save current cursor position before the insert moves it to the end
+    const savedPos = editor.state.selection.anchor;
     const endPos = editor.state.doc.content.size;
-    editor.chain().insertContentAt(endPos, importedContent.content).run();
+    editor
+      .chain()
+      .insertContentAt(endPos, importedContent.content)
+      // Restore cursor to where the user was so the first arrow key press
+      // doesn't snap the viewport to the bottom of the appended content
+      .setTextSelection(savedPos)
+      .run();
     debouncedSave(editor.getJSON() as TipTapDoc);
   }, [importedContent, editor, debouncedSave]);
 
