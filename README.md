@@ -18,7 +18,7 @@ A lightweight collaborative document editor built as the Ajaia LLC full-stack de
 2. Open Share → enter `bob@demo.local` → share
 3. Sign out → sign in as Bob → see document under "Shared with me"
 4. Edit the document as Bob → verify changes persist after refresh
-5. Back as Alice → import a `.md` or `.txt` file from the Import button
+5. Back as Alice → import a `.docx` file from the Import button → images and formatting appear inline
 
 ---
 
@@ -97,8 +97,9 @@ npm test
 |-----------|------|-------|
 | `.txt` | `text/plain` | Imported as plain paragraphs |
 | `.md` | `text/markdown` | Headings (#, ##, ###) and bullet lists detected |
+| `.docx` | `application/vnd.openxmlformats-officedocument.wordprocessingml.document` | Headings, lists, bold/italic, and inline images preserved. Images uploaded to Supabase Storage. |
 
-`.docx`, `.pdf`, and other types are **not supported** and will show an error message. Max file size: **1 MB**.
+`.pdf` and other types are **not supported** and will show an error message. Max file size: **10 MB** for `.docx`, **1 MB** for `.txt`/`.md`.
 
 ---
 

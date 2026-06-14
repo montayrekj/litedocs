@@ -40,7 +40,10 @@
 - ✅ Rich-text editing: Bold, Italic, Underline, H1, H2, Bullet list, Ordered list
 - ✅ Autosave with visual "Saving…" / "Saved" indicator (800ms debounce)
 - ✅ Content persistence: TipTap JSON stored in Postgres, formatting survives refresh
-- ✅ Import `.txt` and `.md` files as new editable documents
+- ✅ Import `.txt` and `.md` files — appended into current document
+- ✅ Import `.docx` files — headings, lists, bold/italic, and inline images preserved
+- ✅ Inline images: click-to-select, delete button (×), drag-resize handles with aspect-ratio lock
+- ✅ Images uploaded to Supabase Storage and served via public URLs (survive refresh)
 - ✅ Share document by email → collaborator sees it under "Shared with me"
 - ✅ Owner vs Shared badges in dashboard and editor
 - ✅ Remove collaborator access from Share dialog
@@ -57,12 +60,12 @@
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Real-time collaboration | Not built | Would require Yjs + Supabase Realtime; out of scope for 4–6h |
-| `.docx` / `.pdf` import | Not built | Adds large deps for brittle output; `.md` proves the concept |
+| Real-time collaboration | Not built | Would require Yjs + Supabase Realtime; out of scope for timebox |
 | Version history | Not built | Stated out of scope in architecture note |
 | Viewer-only role | Not built | Owner vs Editor is sufficient for the demo; viewer would add UI complexity |
 | Commenting / suggestions | Not built | Stated out of scope |
 | Export to PDF/Markdown | Not built | Stated out of scope |
+| `.pdf` import | Not built | No reliable free-tier PDF-to-text library without external APIs |
 
 ---
 
