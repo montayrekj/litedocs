@@ -1,0 +1,9 @@
+[Add your unlisted Loom or YouTube URL here after recording]
+
+Suggested outline (3–5 min):
+1. Scope overview + intentional cuts (30s)
+2. Sign in as Alice → create doc → format (bold, headings, lists) → autosave indicator (60s)
+3. Share with Bob → sign in as Bob → edit shared doc → refresh (60s)
+4. Import a .md file → verify it opens as editable document (30s)
+5. Architecture walkthrough: Supabase RLS, TipTap JSON, branch structure (60s)
+6. How AI helped + what was changed/rejected (30s)
