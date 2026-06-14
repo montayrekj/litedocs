@@ -144,6 +144,24 @@ function RenameModal({
   );
 }
 
+function SignOutButton() {
+  const [isPending, startTransition] = useTransition();
+  return (
+    <button
+      onClick={() =>
+        startTransition(async () => {
+          const { signOut } = await import("@/lib/documents/actions");
+          await signOut();
+        })
+      }
+      disabled={isPending}
+      className="text-sm text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-50"
+    >
+      {isPending ? "Signing out…" : "Sign out"}
+    </button>
+  );
+}
+
 export default function DashboardClient({ user, myDocuments, sharedDocuments }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -211,18 +229,7 @@ export default function DashboardClient({ user, myDocuments, sharedDocuments }: 
           </div>
           <div className="flex items-center gap-3">
             <span className="text-sm text-gray-500">{user.email}</span>
-            <form action="/api/sign-out" method="post">
-              <button
-                type="button"
-                onClick={async () => {
-                  const { signOut } = await import("@/lib/documents/actions");
-                  await signOut();
-                }}
-                className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
-              >
-                Sign out
-              </button>
-            </form>
+            <SignOutButton />
           </div>
         </div>
       </header>
