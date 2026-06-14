@@ -91,3 +91,10 @@
   margin: 1rem 0;
   display: block;
 }
+
+/* Image NodeView wrapper — keep it as a block so it doesn't disturb text flow */
+.ProseMirror [data-node-view-wrapper] {
+  display: block;
+  line-height: 0;
+  user-select: none;
+}

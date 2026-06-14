@@ -69,19 +69,54 @@ export async function POST(request: NextRequest) {
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
 
+  // Upload each extracted image to Supabase Storage and map placeholder → public URL.
+  // This avoids embedding large base64 strings in the document content (they get silently
+  // dropped when passing through the Next.js server action serialization layer).
+  const imageDataMap = new Map<string, string>();
+  let imageCounter = 0;
+
+  async function uploadDocxImage(
+    base64: string,
+    contentType: string,
+    index: number
+  ): Promise<string> {
+    try {
+      const ext = contentType.split("/")[1]?.replace("jpeg", "jpg") ?? "jpg";
+      const path = `${user.id}/${Date.now()}-${index}.${ext}`;
+      const imageBuffer = Buffer.from(base64, "base64");
+
+      const { error } = await supabase.storage
+        .from("document-images")
+        .upload(path, imageBuffer, { contentType, upsert: false });
+
+      if (error) throw error;
+
+      const { data } = supabase.storage
+        .from("document-images")
+        .getPublicUrl(path);
+
+      return data.publicUrl;
+    } catch {
+      // Storage not available — fall back to inline base64
+      return `data:${contentType};base64,${base64}`;
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { value: rawHtml, messages } = await mammoth.convertToHtml(
     { buffer },
     {
       styleMap: MAMMOTH_STYLE_MAP,
-      // mammoth.images.imgElement is the correct API — confirmed accessible at runtime.
-      // Cast through any because TypeScript's mammoth type defs don't expose .images.
-      // The callback receives an image element; return { src } and mammoth wraps it in <img>.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       convertImage: (mammoth as any).images.imgElement(
         async (image: { read: (enc: string) => Promise<string>; contentType: string }) => {
           try {
             const base64 = await image.read("base64");
-            return { src: `data:${image.contentType};base64,${base64}` };
+            const idx = imageCounter++;
+            const placeholder = `__docx_img_${idx}__`;
+            const src = await uploadDocxImage(base64, image.contentType, idx);
+            imageDataMap.set(placeholder, src);
+            return { src: placeholder };
           } catch {
             return { src: "" };
           }
@@ -96,12 +131,36 @@ export async function POST(request: NextRequest) {
     .filter((m) => m.type === "warning")
     .map((m) => m.message);
 
-  const tiptapJson = generateJSON(html, [
+  const rawJson = generateJSON(html, [
     // @ts-expect-error — underline may be bundled in StarterKit at runtime
     StarterKit.configure({ underline: false }),
     UnderlineExtension,
     ImageExtension,
   ]);
+
+  // Swap placeholder srcs back to real base64 data URIs now that the DOM
+  // has finished parsing (avoids attribute truncation in the virtual DOM).
+  function patchImageNodes(node: Record<string, unknown>): Record<string, unknown> {
+    if (
+      node.type === "image" &&
+      node.attrs &&
+      typeof (node.attrs as Record<string, unknown>).src === "string"
+    ) {
+      const placeholder = (node.attrs as Record<string, string>).src;
+      if (imageDataMap.has(placeholder)) {
+        return {
+          ...node,
+          attrs: { ...(node.attrs as object), src: imageDataMap.get(placeholder) },
+        };
+      }
+    }
+    if (Array.isArray(node.content)) {
+      return { ...node, content: (node.content as Record<string, unknown>[]).map(patchImageNodes) };
+    }
+    return node;
+  }
+
+  const tiptapJson = patchImageNodes(rawJson as Record<string, unknown>);
 
   return NextResponse.json({ json: tiptapJson, warnings });
 }

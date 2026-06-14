@@ -4,7 +4,7 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import UnderlineExtension from "@tiptap/extension-underline";
 import Placeholder from "@tiptap/extension-placeholder";
-import ImageExtension from "@tiptap/extension-image";
+import ImageExtension from "./ImageExtension";
 import EditorToolbar from "./EditorToolbar";
 import { useCallback, useEffect, useRef } from "react";
 import { updateDocument } from "@/lib/documents/actions";
@@ -33,9 +33,13 @@ export default function DocumentEditor({
       if (saveTimer.current) clearTimeout(saveTimer.current);
       onSaveStatusChange("saving");
       saveTimer.current = setTimeout(async () => {
+        // ProseMirror's toJSON() produces null-prototype objects for attrs,
+        // which React Flight (Next.js server action serialization) can silently
+        // drop. Round-tripping through JSON converts them to plain objects.
+        const safeContent: TipTapDoc = JSON.parse(JSON.stringify(content));
         try {
           await updateDocument(documentId, {
-            content,
+            content: safeContent,
             ...(latestTitle.current !== undefined
               ? { title: latestTitle.current }
               : {}),
@@ -76,19 +80,30 @@ export default function DocumentEditor({
     immediatelyRender: false,
   });
 
+  // Keep a stable ref to onImportDone so the cleanup inside setTimeout
+  // always calls the latest version without needing to be in the effect deps.
+  const onImportDoneRef = useRef(onImportDone);
+  useEffect(() => { onImportDoneRef.current = onImportDone; }, [onImportDone]);
+
   // Append imported content at end, restore cursor, then signal parent to clear state.
-  // onImportDone resets importedContent → null in parent so this effect only fires once per import.
+  // setTimeout defers out of React's concurrent render cycle so TipTap's internal
+  // flushSync call doesn't conflict and editor.getJSON() sees the committed state.
+  // The cleanup only cancels the 0 ms timer (already fired by the time the parent
+  // re-renders with importedContent=null), so the 800 ms debouncedSave is unaffected.
   useEffect(() => {
     if (!importedContent || !editor) return;
-    const savedPos = editor.state.selection.anchor;
-    const endPos = editor.state.doc.content.size;
-    editor
-      .chain()
-      .insertContentAt(endPos, importedContent.content)
-      .setTextSelection(savedPos)
-      .run();
-    debouncedSave(editor.getJSON() as TipTapDoc);
-    onImportDone?.();
+    const id = setTimeout(() => {
+      const savedPos = editor.state.selection.anchor;
+      const endPos = editor.state.doc.content.size;
+      editor
+        .chain()
+        .insertContentAt(endPos, importedContent.content)
+        .setTextSelection(savedPos)
+        .run();
+      debouncedSave(editor.getJSON() as TipTapDoc);
+      onImportDoneRef.current?.();
+    }, 0);
+    return () => clearTimeout(id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [importedContent]);
 
